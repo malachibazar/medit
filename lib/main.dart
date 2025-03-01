@@ -87,9 +87,6 @@ class NotepadHomePageState extends State<NotepadHomePage> {
       },
       child: CupertinoPageScaffold(
         navigationBar: CupertinoNavigationBar(
-          middle: Text(
-            _titleController.text.isEmpty ? 'New Note' : _titleController.text,
-          ),
           // Add trailing delete button only for existing notes
           trailing:
               widget.noteId != null
