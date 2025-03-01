@@ -4,9 +4,12 @@ A minimalist, native-feeling text editor built with Flutter because sometimes si
 
 ## Getting Started
 
-1. Download and install the latest release
-2. Launch Medit
-3. Start writing - it's that simple!
+1. Download and install the latest release:
+   - [Download Medit.dmg](https://github.com/malachibazar/medit/raw/main/installers/macos/medit.dmg)
+2. Open the downloaded DMG file
+3. Drag Medit into your Applications folder
+4. Launch Medit
+5. Start writing - it's that simple!
 
 ## Building from Source
 
