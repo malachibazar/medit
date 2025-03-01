@@ -1,16 +1,30 @@
-# medit
+# Medit - The Text Editor macOS Deserves
 
-A new Flutter project.
+A minimalist, native-feeling text editor built with Flutter because sometimes simple is better.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+1. Download and install the latest release
+2. Launch Medit
+3. Start writing - it's that simple!
 
-A few resources to get you started if this is your first Flutter project:
+## Building from Source
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Make sure you have Flutter installed and configured for macOS development, then:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+flutter run -d macos
+```
+
+## Contributing
+
+Found a bug? Have a feature request? Pull requests are welcome! Feel free to file an issue or submit a PR.
+
+## License
+
+This project is licensed under the MIT License - because sharing is caring.
+
+---
+
+Built with ❤️ using Flutter
