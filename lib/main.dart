@@ -27,12 +27,15 @@ class NotepadHomePage extends StatefulWidget {
   final int? noteId;
   final String? initialTitle;
   final String? initialContent;
+  final bool startInViewMode;
 
   const NotepadHomePage({
     super.key,
     this.noteId,
     this.initialTitle,
     this.initialContent,
+    this.startInViewMode =
+        true, // Default to view mode when opening existing notes
   });
 
   @override
@@ -57,6 +60,9 @@ class NotepadHomePageState extends State<NotepadHomePage> {
       textController: _textController,
       titleController: _titleController,
       noteId: widget.noteId,
+      startInViewMode:
+          widget.startInViewMode &&
+          widget.noteId != null, // Only start in view mode for existing notes
     );
   }
 

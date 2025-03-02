@@ -1,17 +1,20 @@
 import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'database_helper.dart';
+import 'markdown_view.dart';
 
 class NoteTab extends StatefulWidget {
   final TextEditingController textController;
   final TextEditingController titleController;
-  final int? noteId; // Add noteId parameter for existing notes
+  final int? noteId;
+  final bool startInViewMode;
 
   const NoteTab({
     super.key,
     required this.textController,
     required this.titleController,
-    this.noteId, // Optional parameter for existing notes
+    this.noteId,
+    this.startInViewMode = false,
   });
 
   @override
@@ -20,10 +23,12 @@ class NoteTab extends StatefulWidget {
 
 class _NoteTabState extends State<NoteTab> {
   final ScrollController _scrollController = ScrollController();
+  final ScrollController _previewScrollController = ScrollController();
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   Timer? _saveTimer;
   bool _isNewNote = true;
   bool _hasChanges = false;
+  bool _isPreviewMode = false;
   int? _currentNoteId;
 
   @override
@@ -31,6 +36,9 @@ class _NoteTabState extends State<NoteTab> {
     super.initState();
     _currentNoteId = widget.noteId;
     _isNewNote = _currentNoteId == null;
+
+    // Set initial view mode based on the parameter
+    _isPreviewMode = widget.startInViewMode;
 
     // Set up listeners for text changes to trigger auto-save
     widget.titleController.addListener(_onTextChanged);
@@ -47,6 +55,12 @@ class _NoteTabState extends State<NoteTab> {
       // Set a new timer to save after 1 second of inactivity
       _saveTimer = Timer(const Duration(seconds: 1), _saveNote);
     }
+  }
+
+  void _togglePreviewMode() {
+    setState(() {
+      _isPreviewMode = !_isPreviewMode;
+    });
   }
 
   // Public method to force an immediate save
@@ -126,6 +140,7 @@ class _NoteTabState extends State<NoteTab> {
     widget.textController.removeListener(_onTextChanged);
 
     _scrollController.dispose();
+    _previewScrollController.dispose();
     super.dispose();
   }
 
@@ -149,21 +164,51 @@ class _NoteTabState extends State<NoteTab> {
                 top: Radius.circular(8.0),
               ),
             ),
-            child: CupertinoTextField(
-              controller: widget.titleController,
-              placeholder: 'Title',
-              decoration: const BoxDecoration(border: null),
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              style: const TextStyle(
-                fontFamily: '.AppleSystemUIFont',
-                fontSize: 18.0,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
+            child: Row(
+              children: [
+                Expanded(
+                  child:
+                      _isPreviewMode
+                          ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                            child: Text(
+                              widget.titleController.text.isEmpty
+                                  ? 'Untitled'
+                                  : widget.titleController.text,
+                              style: const TextStyle(
+                                fontFamily: '.AppleSystemUIFont',
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                          : CupertinoTextField(
+                            controller: widget.titleController,
+                            placeholder: 'Title',
+                            decoration: const BoxDecoration(border: null),
+                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                            style: const TextStyle(
+                              fontFamily: '.AppleSystemUIFont',
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                          ),
+                ),
+                // Toggle button between edit and preview modes
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: Icon(
+                    _isPreviewMode ? CupertinoIcons.pencil : CupertinoIcons.eye,
+                    color: CupertinoTheme.of(context).primaryColor,
+                  ),
+                  onPressed: _togglePreviewMode,
+                ),
+              ],
             ),
           ),
 
-          // Note content area (divider removed)
+          // Note content area - either editor or preview based on mode
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -173,37 +218,54 @@ class _NoteTabState extends State<NoteTab> {
                 ),
               ),
               width: double.infinity,
-              child: CupertinoScrollbar(
-                controller: _scrollController,
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: MediaQuery.of(context).size.height - 100,
-                    ),
-                    child: CupertinoTextField(
-                      controller: widget.textController,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      placeholder: 'Type your notes here...',
-                      padding: const EdgeInsets.all(12.0),
-                      decoration: const BoxDecoration(
-                        color: CupertinoColors.systemBackground,
-                        border: null,
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(8.0),
+              child:
+                  _isPreviewMode
+                      ? Container(
+                        decoration: const BoxDecoration(
+                          color: CupertinoColors.systemBackground,
+                          borderRadius: BorderRadius.vertical(
+                            bottom: Radius.circular(8.0),
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(12.0),
+                        child: MarkdownView(
+                          data: widget.textController.text,
+                          scrollController: _previewScrollController,
+                        ),
+                      )
+                      : CupertinoScrollbar(
+                        controller: _scrollController,
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight:
+                                  MediaQuery.of(context).size.height - 100,
+                            ),
+                            child: CupertinoTextField(
+                              controller: widget.textController,
+                              maxLines: null,
+                              expands: true,
+                              textAlignVertical: TextAlignVertical.top,
+                              placeholder:
+                                  'Type your notes here using markdown...',
+                              padding: const EdgeInsets.all(12.0),
+                              decoration: const BoxDecoration(
+                                color: CupertinoColors.systemBackground,
+                                border: null,
+                                borderRadius: BorderRadius.vertical(
+                                  bottom: Radius.circular(8.0),
+                                ),
+                              ),
+                              style: const TextStyle(
+                                fontFamily: '.AppleSystemUIFont',
+                                fontSize: 16.0,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      style: const TextStyle(
-                        fontFamily: '.AppleSystemUIFont',
-                        fontSize: 16.0,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ],

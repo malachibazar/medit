@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'database_helper.dart';
 import 'main.dart';
 
@@ -52,6 +53,28 @@ class _NotesListScreenState extends State<NotesListScreen> {
     _refreshNotes();
   }
 
+  // Simple text preview from markdown content
+  String _getPlainTextPreview(String markdownText) {
+    // Strip markdown syntax for preview
+    final preview =
+        markdownText
+            .replaceAll(RegExp(r'#{1,6}\s'), '') // Remove headings
+            .replaceAll(RegExp(r'\*\*|\*|__|\~\~|`'), '') // Remove formatting
+            .replaceAll(
+              RegExp(r'\!\[.*?\]\(.*?\)'),
+              '[Image]',
+            ) // Replace images
+            .replaceAll(RegExp(r'\[.*?\]\(.*?\)'), '[Link]') // Replace links
+            .replaceAll(RegExp(r'>\s.*'), '') // Remove blockquotes
+            .replaceAll(
+              RegExp(r'```[\s\S]*?```'),
+              '[Code Block]',
+            ) // Remove code blocks
+            .trim();
+
+    return preview.length > 150 ? '${preview.substring(0, 150)}...' : preview;
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -61,11 +84,13 @@ class _NotesListScreenState extends State<NotesListScreen> {
           padding: EdgeInsets.zero,
           child: const Icon(CupertinoIcons.add),
           onPressed: () {
-            // Navigate to create a new note
+            // Navigate to create a new note - new notes start in edit mode
             Navigator.of(context)
                 .push(
                   CupertinoPageRoute(
-                    builder: (context) => const NotepadHomePage(),
+                    builder: (context) => const NotepadHomePage(
+                      startInViewMode: false, // New notes should start in edit mode
+                    ),
                   ),
                 )
                 .then((_) => _refreshNotes());
@@ -96,17 +121,19 @@ class _NotesListScreenState extends State<NotesListScreen> {
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(CupertinoIcons.add_circled),
-                            SizedBox(width: 8),
-                            Text('New Note'),
+                          children: [
+                            const Icon(CupertinoIcons.add_circled),
+                            const SizedBox(width: 8),
+                            const Text('New Note'),
                           ],
                         ),
                         onPressed: () {
                           Navigator.of(context)
                               .push(
                                 CupertinoPageRoute(
-                                  builder: (context) => const NotepadHomePage(),
+                                  builder: (context) => const NotepadHomePage(
+                                    startInViewMode: false, // New notes should start in edit mode
+                                  ),
                                 ),
                               )
                               .then((_) => _refreshNotes());
@@ -135,6 +162,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                       noteId: note['id'],
                                       initialTitle: note['title'],
                                       initialContent: note['note'],
+                                      startInViewMode: true, // Existing notes open in view mode
                                     ),
                               ),
                             )
@@ -167,13 +195,16 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 4.0),
+                                  // Use plain text preview instead of markdown to avoid overflow issues
                                   Text(
-                                    note['note'] ?? '',
+                                    _getPlainTextPreview(note['note'] ?? ''),
+                                    style: const TextStyle(
+                                      fontSize: 14.0,
+                                      color: CupertinoColors.systemGrey,
+                                      height: 1.3,
+                                    ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: CupertinoColors.systemGrey,
-                                    ),
                                   ),
                                   const SizedBox(height: 4.0),
                                   Text(
