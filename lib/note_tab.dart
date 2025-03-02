@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'dart:async';
+import 'dart:io';
 import 'database_helper.dart';
 import 'markdown_view.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:file_picker/file_picker.dart';
 
 class NoteTab extends StatefulWidget {
   final TextEditingController textController;
@@ -54,6 +57,71 @@ class _NoteTabState extends State<NoteTab> {
       _saveTimer?.cancel();
       // Set a new timer to save after 1 second of inactivity
       _saveTimer = Timer(const Duration(seconds: 1), _saveNote);
+    }
+  }
+
+  // File opening functionality
+  Future<void> openFile() async {
+    // Save current note first if needed
+    if (_hasChanges) {
+      await _saveNote();
+    }
+
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'md', 'markdown', 'text'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final contents = await file.readAsString();
+
+        // Extract file name for the title (without extension)
+        String fileName = result.files.single.name;
+        String title =
+            fileName.contains('.')
+                ? fileName.substring(0, fileName.lastIndexOf('.'))
+                : fileName;
+
+        // Update the controllers with new content
+        setState(() {
+          widget.titleController.text = title;
+          widget.textController.text = contents;
+
+          // Reset note state to create a new note
+          _isNewNote = true;
+          _currentNoteId = null;
+
+          // Automatically save the imported file as a new note
+          _hasChanges = true;
+          _saveTimer?.cancel();
+          _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
+        });
+
+        // Switch to edit mode
+        if (_isPreviewMode) {
+          _togglePreviewMode();
+        }
+      }
+    } catch (e) {
+      // Show error dialog
+      if (context.mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder:
+              (ctx) => CupertinoAlertDialog(
+                title: const Text('Error Opening File'),
+                content: Text('Could not open the file: ${e.toString()}'),
+                actions: [
+                  CupertinoDialogAction(
+                    child: const Text('OK'),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+        );
+      }
     }
   }
 
@@ -194,6 +262,15 @@ class _NoteTabState extends State<NoteTab> {
                             ),
                             maxLines: 1,
                           ),
+                ),
+                // File open button
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: const Icon(
+                    CupertinoIcons.doc_text_fill,
+                    color: CupertinoColors.systemBlue,
+                  ),
+                  onPressed: openFile,
                 ),
                 // Toggle button between edit and preview modes
                 CupertinoButton(

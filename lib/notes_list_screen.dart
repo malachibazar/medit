@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
+import 'dart:io';
 import 'database_helper.dart';
 import 'main.dart';
+import 'package:file_picker/file_picker.dart';
 
 class NotesListScreen extends StatefulWidget {
   const NotesListScreen({super.key});
@@ -52,6 +54,63 @@ class _NotesListScreenState extends State<NotesListScreen> {
     _refreshNotes();
   }
 
+  // File opening functionality
+  Future<void> _openFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'md', 'markdown', 'text'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final contents = await file.readAsString();
+
+        // Extract file name for the title (without extension)
+        String fileName = result.files.single.name;
+        String title =
+            fileName.contains('.')
+                ? fileName.substring(0, fileName.lastIndexOf('.'))
+                : fileName;
+
+        // Navigate to a new note with the imported content
+        if (context.mounted) {
+          Navigator.of(context)
+              .push(
+                CupertinoPageRoute(
+                  builder:
+                      (context) => NotepadHomePage(
+                        initialTitle: title,
+                        initialContent: contents,
+                        startInViewMode:
+                            false, // Start in edit mode for imported files
+                      ),
+                ),
+              )
+              .then((_) => _refreshNotes());
+        }
+      }
+    } catch (e) {
+      // Show error dialog
+      if (context.mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder:
+              (ctx) => CupertinoAlertDialog(
+                title: const Text('Error Opening File'),
+                content: Text('Could not open the file: ${e.toString()}'),
+                actions: [
+                  CupertinoDialogAction(
+                    child: const Text('OK'),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+        );
+      }
+    }
+  }
+
   // Simple text preview from markdown content
   String _getPlainTextPreview(String markdownText) {
     // Strip markdown syntax for preview
@@ -79,23 +138,36 @@ class _NotesListScreenState extends State<NotesListScreen> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: const Text('All Notes'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Icon(CupertinoIcons.add),
-          onPressed: () {
-            // Navigate to create a new note - new notes start in edit mode
-            Navigator.of(context)
-                .push(
-                  CupertinoPageRoute(
-                    builder:
-                        (context) => const NotepadHomePage(
-                          startInViewMode:
-                              false, // New notes should start in edit mode
-                        ),
-                  ),
-                )
-                .then((_) => _refreshNotes());
-          },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Open file button
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(CupertinoIcons.doc_text_fill),
+              onPressed: _openFile,
+            ),
+            const SizedBox(width: 8),
+            // New note button
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(CupertinoIcons.add),
+              onPressed: () {
+                // Navigate to create a new note - new notes start in edit mode
+                Navigator.of(context)
+                    .push(
+                      CupertinoPageRoute(
+                        builder:
+                            (context) => const NotepadHomePage(
+                              startInViewMode:
+                                  false, // New notes should start in edit mode
+                            ),
+                      ),
+                    )
+                    .then((_) => _refreshNotes());
+              },
+            ),
+          ],
         ),
       ),
       child: SafeArea(
@@ -115,32 +187,55 @@ class _NotesListScreenState extends State<NotesListScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      CupertinoButton(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(CupertinoIcons.add_circled),
-                            const SizedBox(width: 8),
-                            const Text('New Note'),
-                          ],
-                        ),
-                        onPressed: () {
-                          Navigator.of(context)
-                              .push(
-                                CupertinoPageRoute(
-                                  builder:
-                                      (context) => const NotepadHomePage(
-                                        startInViewMode:
-                                            false, // New notes should start in edit mode
-                                      ),
-                                ),
-                              )
-                              .then((_) => _refreshNotes());
-                        },
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Open file button for empty state
+                          CupertinoButton(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(CupertinoIcons.doc_text_fill),
+                                const SizedBox(width: 8),
+                                const Text('Open File'),
+                              ],
+                            ),
+                            onPressed: _openFile,
+                          ),
+                          const SizedBox(width: 16),
+                          // New note button for empty state
+                          CupertinoButton(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(CupertinoIcons.add_circled),
+                                const SizedBox(width: 8),
+                                const Text('New Note'),
+                              ],
+                            ),
+                            onPressed: () {
+                              Navigator.of(context)
+                                  .push(
+                                    CupertinoPageRoute(
+                                      builder:
+                                          (context) => const NotepadHomePage(
+                                            startInViewMode:
+                                                false, // New notes should start in edit mode
+                                          ),
+                                    ),
+                                  )
+                                  .then((_) => _refreshNotes());
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
