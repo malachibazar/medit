@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'database_helper.dart';
 import 'main.dart';
 
@@ -88,9 +87,11 @@ class _NotesListScreenState extends State<NotesListScreen> {
             Navigator.of(context)
                 .push(
                   CupertinoPageRoute(
-                    builder: (context) => const NotepadHomePage(
-                      startInViewMode: false, // New notes should start in edit mode
-                    ),
+                    builder:
+                        (context) => const NotepadHomePage(
+                          startInViewMode:
+                              false, // New notes should start in edit mode
+                        ),
                   ),
                 )
                 .then((_) => _refreshNotes());
@@ -131,9 +132,11 @@ class _NotesListScreenState extends State<NotesListScreen> {
                           Navigator.of(context)
                               .push(
                                 CupertinoPageRoute(
-                                  builder: (context) => const NotepadHomePage(
-                                    startInViewMode: false, // New notes should start in edit mode
-                                  ),
+                                  builder:
+                                      (context) => const NotepadHomePage(
+                                        startInViewMode:
+                                            false, // New notes should start in edit mode
+                                      ),
                                 ),
                               )
                               .then((_) => _refreshNotes());
@@ -162,7 +165,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                       noteId: note['id'],
                                       initialTitle: note['title'],
                                       initialContent: note['note'],
-                                      startInViewMode: true, // Existing notes open in view mode
+                                      startInViewMode:
+                                          true, // Existing notes open in view mode
                                     ),
                               ),
                             )
