@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:io';
 import 'database_helper.dart';
 import 'markdown_view.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:file_picker/file_picker.dart';
 
 class NoteTab extends StatefulWidget {
