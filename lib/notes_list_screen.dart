@@ -192,15 +192,15 @@ class _NotesListScreenState extends State<NotesListScreen> {
             // Open file button
             CupertinoButton(
               padding: EdgeInsets.zero,
-              child: const Icon(CupertinoIcons.doc_text_fill),
               onPressed: _openFile,
+              child: const Icon(CupertinoIcons.doc_text_fill),
             ),
             const SizedBox(width: 8),
             // New note button
             CupertinoButton(
               padding: EdgeInsets.zero,
-              child: const Icon(CupertinoIcons.add),
               onPressed: _createNewNote,
+              child: const Icon(CupertinoIcons.add),
             ),
           ],
         ),
@@ -241,6 +241,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                 horizontal: 20,
                                 vertical: 8,
                               ),
+                              onPressed: _openFile,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -249,7 +250,6 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                   const Text('Open File'),
                                 ],
                               ),
-                              onPressed: _openFile,
                             ),
                             const SizedBox(width: 16),
                             // New note button for empty state
@@ -258,6 +258,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                 horizontal: 20,
                                 vertical: 8,
                               ),
+                              onPressed: _createNewNote,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -266,7 +267,6 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                   const Text('New Note'),
                                 ],
                               ),
-                              onPressed: _createNewNote,
                             ),
                           ],
                         ),
