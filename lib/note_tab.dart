@@ -1,4 +1,6 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for keyboard shortcuts
 import 'dart:async';
 import 'dart:io';
 import 'database_helper.dart';
@@ -27,6 +29,10 @@ class _NoteTabState extends State<NoteTab> {
   final ScrollController _scrollController = ScrollController();
   final ScrollController _previewScrollController = ScrollController();
   final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final FocusNode _keyboardFocusNode =
+      FocusNode(); // Added for keyboard shortcuts
+  final FocusNode _noteBodyFocusNode =
+      FocusNode(); // Add focus node for note body
   Timer? _saveTimer;
   bool _isNewNote = true;
   bool _hasChanges = false;
@@ -38,13 +44,75 @@ class _NoteTabState extends State<NoteTab> {
     super.initState();
     _currentNoteId = widget.noteId;
     _isNewNote = _currentNoteId == null;
-
-    // Set initial view mode based on the parameter
     _isPreviewMode = widget.startInViewMode;
 
     // Set up listeners for text changes to trigger auto-save
     widget.titleController.addListener(_onTextChanged);
     widget.textController.addListener(_onTextChanged);
+
+    // Disable system sounds for this focus node
+    _keyboardFocusNode.onKeyEvent = _handleKeyEvent;
+
+    // If this is a new note, focus the note body after the widget is built
+    if (_isNewNote) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _noteBodyFocusNode.requestFocus();
+      });
+    }
+  }
+
+  // This method handles key events and returns whether the event was handled
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    // We only want to handle key down events
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    bool handled = false;
+
+    // Handle Return key in preview mode - switch to edit mode
+    if (_isPreviewMode &&
+        event.logicalKey == LogicalKeyboardKey.enter &&
+        !HardwareKeyboard.instance.isControlPressed &&
+        !HardwareKeyboard.instance.isMetaPressed) {
+      _togglePreviewMode();
+      handled = true;
+    }
+    // Handle Command+Return in edit mode - switch to preview mode
+    else if (!_isPreviewMode &&
+        event.logicalKey == LogicalKeyboardKey.enter &&
+        HardwareKeyboard.instance.isMetaPressed) {
+      // Meta key is Command on Mac
+      _togglePreviewMode();
+      handled = true;
+    }
+    // Handle Escape key - return to notes list
+    else if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (_hasChanges) {
+        _saveNote().then((_) {
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+        });
+      } else {
+        Navigator.of(context).pop();
+      }
+      handled = true;
+    }
+    // Handle the backspace key to prevent the sound when there's nothing to delete
+    else if (event.logicalKey == LogicalKeyboardKey.backspace) {
+      // Check if we are in edit mode and if the text field is empty
+      if (!_isPreviewMode &&
+          (widget.textController.selection.isCollapsed &&
+                  widget.textController.selection.baseOffset == 0 ||
+              widget.textController.text.isEmpty)) {
+        // Don't make the alert sound, but still let the event pass through
+        // This prevents the sound but allows the cursor to be positioned properly
+        return KeyEventResult.ignored;
+      }
+    }
+
+    return handled ? KeyEventResult.handled : KeyEventResult.ignored;
   }
 
   void _onTextChanged() {
@@ -125,6 +193,14 @@ class _NoteTabState extends State<NoteTab> {
   }
 
   void _togglePreviewMode() {
+    if (_isPreviewMode) {
+      // When switching to edit mode from preview, request focus immediately
+      _noteBodyFocusNode.requestFocus();
+    } else {
+      // When switching to preview mode, unfocus the text field but keep keyboard focus
+      _noteBodyFocusNode.unfocus();
+      _keyboardFocusNode.requestFocus();
+    }
     setState(() {
       _isPreviewMode = !_isPreviewMode;
     });
@@ -208,6 +284,9 @@ class _NoteTabState extends State<NoteTab> {
 
     _scrollController.dispose();
     _previewScrollController.dispose();
+    _keyboardFocusNode.dispose(); // Dispose the focus node
+    _noteBodyFocusNode.dispose(); // Dispose the note body focus node
+
     super.dispose();
   }
 
@@ -218,133 +297,146 @@ class _NoteTabState extends State<NoteTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        children: [
-          // Title field
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            decoration: BoxDecoration(
-              color: CupertinoColors.systemBackground,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(8.0),
+    return Focus(
+      focusNode: _keyboardFocusNode,
+      autofocus: true,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            // Title field
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemBackground,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(8.0),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child:
-                      _isPreviewMode
-                          ? Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12.0),
-                            child: Text(
-                              widget.titleController.text.isEmpty
-                                  ? 'Untitled'
-                                  : widget.titleController.text,
+              child: Row(
+                children: [
+                  Expanded(
+                    child:
+                        _isPreviewMode
+                            ? Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12.0,
+                              ),
+                              child: Text(
+                                widget.titleController.text.isEmpty
+                                    ? 'Untitled'
+                                    : widget.titleController.text,
+                                style: const TextStyle(
+                                  fontFamily: '.AppleSystemUIFont',
+                                  fontSize: 18.0,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            )
+                            : CupertinoTextField(
+                              controller: widget.titleController,
+                              placeholder: 'Title',
+                              decoration: const BoxDecoration(border: null),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12.0,
+                              ),
                               style: const TextStyle(
                                 fontFamily: '.AppleSystemUIFont',
                                 fontSize: 18.0,
                                 fontWeight: FontWeight.w600,
                               ),
+                              maxLines: 1,
                             ),
-                          )
-                          : CupertinoTextField(
-                            controller: widget.titleController,
-                            placeholder: 'Title',
+                  ),
+                  // File open button
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: openFile,
+                    child: const Icon(
+                      CupertinoIcons.doc_text_fill,
+                      color: CupertinoColors.systemBlue,
+                    ),
+                  ),
+                  // Toggle button between edit and preview modes
+                  Tooltip(
+                    message:
+                        _isPreviewMode
+                            ? 'Edit Note (Return)'
+                            : 'Preview Note (⌘ Return)',
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _togglePreviewMode,
+                      child: Icon(
+                        _isPreviewMode
+                            ? CupertinoIcons.pencil
+                            : CupertinoIcons.eye,
+                        color: CupertinoTheme.of(context).primaryColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Note content area - either editor or preview based on mode
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey6,
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(8.0),
+                  ),
+                ),
+                width: double.infinity,
+                child:
+                    _isPreviewMode
+                        ? Container(
+                          decoration: const BoxDecoration(
+                            color: CupertinoColors.systemBackground,
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(8.0),
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(12.0),
+                          child: MarkdownView(
+                            data: widget.textController.text,
+                            scrollController: _previewScrollController,
+                          ),
+                        )
+                        : Container(
+                          decoration: const BoxDecoration(
+                            color: CupertinoColors.systemBackground,
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(8.0),
+                            ),
+                          ),
+                          child: CupertinoTextField(
+                            controller: widget.textController,
+                            focusNode: _noteBodyFocusNode,
+                            autofocus: _isNewNote,
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            placeholder:
+                                'Type your notes here using markdown...',
+                            padding: const EdgeInsets.all(12.0),
+                            scrollController: _scrollController,
+                            onTapOutside: (_) {
+                              // Unfocus when tapping outside
+                              _noteBodyFocusNode.unfocus();
+                            },
                             decoration: const BoxDecoration(border: null),
-                            padding: const EdgeInsets.symmetric(vertical: 12.0),
                             style: const TextStyle(
                               fontFamily: '.AppleSystemUIFont',
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 16.0,
+                              height: 1.5,
                             ),
-                            maxLines: 1,
                           ),
-                ),
-                // File open button
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Icon(
-                    CupertinoIcons.doc_text_fill,
-                    color: CupertinoColors.systemBlue,
-                  ),
-                  onPressed: openFile,
-                ),
-                // Toggle button between edit and preview modes
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: Icon(
-                    _isPreviewMode ? CupertinoIcons.pencil : CupertinoIcons.eye,
-                    color: CupertinoTheme.of(context).primaryColor,
-                  ),
-                  onPressed: _togglePreviewMode,
-                ),
-              ],
-            ),
-          ),
-
-          // Note content area - either editor or preview based on mode
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey6,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(8.0),
-                ),
+                        ),
               ),
-              width: double.infinity,
-              child:
-                  _isPreviewMode
-                      ? Container(
-                        decoration: const BoxDecoration(
-                          color: CupertinoColors.systemBackground,
-                          borderRadius: BorderRadius.vertical(
-                            bottom: Radius.circular(8.0),
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(12.0),
-                        child: MarkdownView(
-                          data: widget.textController.text,
-                          scrollController: _previewScrollController,
-                        ),
-                      )
-                      : CupertinoScrollbar(
-                        controller: _scrollController,
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight:
-                                  MediaQuery.of(context).size.height - 100,
-                            ),
-                            child: CupertinoTextField(
-                              controller: widget.textController,
-                              maxLines: null,
-                              expands: true,
-                              textAlignVertical: TextAlignVertical.top,
-                              placeholder:
-                                  'Type your notes here using markdown...',
-                              padding: const EdgeInsets.all(12.0),
-                              decoration: const BoxDecoration(
-                                color: CupertinoColors.systemBackground,
-                                border: null,
-                                borderRadius: BorderRadius.vertical(
-                                  bottom: Radius.circular(8.0),
-                                ),
-                              ),
-                              style: const TextStyle(
-                                fontFamily: '.AppleSystemUIFont',
-                                fontSize: 16.0,
-                                height: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

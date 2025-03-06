@@ -11,6 +11,15 @@ A minimalist, native-feeling text editor built with Flutter because sometimes si
 4. Launch Medit
 5. Start writing - it's that simple!
 
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Command+N | Create new note |
+| Return (in preview mode) | Switch to edit mode |
+| Command+Return (in edit mode) | Switch to preview mode |
+| Escape | Return to notes list |
+
 ## Building from Source
 
 Make sure you have Flutter installed and configured for macOS development, then:

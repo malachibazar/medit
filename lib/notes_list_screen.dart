@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart'; // Add services import for keyboard shortcuts
 import 'dart:io';
 import 'database_helper.dart';
 import 'main.dart';
@@ -16,14 +17,61 @@ class _NotesListScreenState extends State<NotesListScreen> {
   List<Map<String, dynamic>> _notes = [];
   bool _isLoading = true;
   bool _didInitialLoad = false;
+  final FocusNode _keyboardFocusNode =
+      FocusNode(); // Add focus node for keyboard shortcuts
 
   @override
   void initState() {
     super.initState();
     _refreshNotes();
+    _keyboardFocusNode.onKeyEvent = _handleKeyEvent; // Set up key event handler
+    // Request focus when the screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _keyboardFocusNode.requestFocus();
+    });
   }
 
-  // Add didChangeDependencies to refresh notes when returning to this screen
+  @override
+  void dispose() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Cancel any pending focus requests
+      _keyboardFocusNode.unfocus();
+    });
+    _keyboardFocusNode.dispose();
+    super.dispose();
+  }
+
+  // Handle keyboard shortcuts
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    // Handle Command+N to create new note
+    if (event.logicalKey == LogicalKeyboardKey.keyN &&
+        HardwareKeyboard.instance.isMetaPressed) {
+      _createNewNote();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  // Extract new note creation logic to a method so it can be reused
+  void _createNewNote() {
+    Navigator.of(context)
+        .push(
+          CupertinoPageRoute(
+            builder:
+                (context) => const NotepadHomePage(
+                  startInViewMode: false, // Ensure new notes start in edit mode
+                  noteId: null, // Explicitly set noteId to null for new notes
+                ),
+          ),
+        )
+        .then((_) => _refreshNotes());
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -152,211 +200,197 @@ class _NotesListScreenState extends State<NotesListScreen> {
             CupertinoButton(
               padding: EdgeInsets.zero,
               child: const Icon(CupertinoIcons.add),
-              onPressed: () {
-                // Navigate to create a new note - new notes start in edit mode
-                Navigator.of(context)
-                    .push(
-                      CupertinoPageRoute(
-                        builder:
-                            (context) => const NotepadHomePage(
-                              startInViewMode:
-                                  false, // New notes should start in edit mode
-                            ),
-                      ),
-                    )
-                    .then((_) => _refreshNotes());
-              },
+              onPressed: _createNewNote,
             ),
           ],
         ),
       ),
       child: SafeArea(
-        child:
-            _isLoading
-                ? const Center(child: CupertinoActivityIndicator())
-                : _notes.isEmpty
-                ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'No notes yet',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Open file button for empty state
-                          CupertinoButton(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(CupertinoIcons.doc_text_fill),
-                                const SizedBox(width: 8),
-                                const Text('Open File'),
-                              ],
-                            ),
-                            onPressed: _openFile,
-                          ),
-                          const SizedBox(width: 16),
-                          // New note button for empty state
-                          CupertinoButton(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(CupertinoIcons.add_circled),
-                                const SizedBox(width: 8),
-                                const Text('New Note'),
-                              ],
-                            ),
-                            onPressed: () {
-                              Navigator.of(context)
-                                  .push(
-                                    CupertinoPageRoute(
-                                      builder:
-                                          (context) => const NotepadHomePage(
-                                            startInViewMode:
-                                                false, // New notes should start in edit mode
-                                          ),
-                                    ),
-                                  )
-                                  .then((_) => _refreshNotes());
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                )
-                : ListView.builder(
-                  itemCount: _notes.length,
-                  itemBuilder: (context, index) {
-                    final note = _notes[index];
-                    final DateTime updatedAt =
-                        DateTime.tryParse(note['updated_at'] ?? '') ??
-                        DateTime.now();
-                    final String formattedDate =
-                        '${updatedAt.month}/${updatedAt.day}/${updatedAt.year} ${_formatTime(updatedAt)}';
-
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.of(context)
-                            .push(
-                              CupertinoPageRoute(
-                                builder:
-                                    (context) => NotepadHomePage(
-                                      noteId: note['id'],
-                                      initialTitle: note['title'],
-                                      initialContent: note['note'],
-                                      startInViewMode:
-                                          true, // Existing notes open in view mode
-                                    ),
-                              ),
-                            )
-                            .then((_) => _refreshNotes());
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12.0),
-                        margin: const EdgeInsets.symmetric(
-                          vertical: 4.0,
-                          horizontal: 8.0,
-                        ),
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.systemBackground,
-                          borderRadius: BorderRadius.circular(8.0),
-                          border: Border.all(
-                            color: CupertinoColors.systemGrey5,
+        child: Focus(
+          focusNode: _keyboardFocusNode,
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            final result = _handleKeyEvent(node, event);
+            if (result == KeyEventResult.handled) {
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.skipRemainingHandlers;
+          },
+          child:
+              _isLoading
+                  ? const Center(child: CupertinoActivityIndicator())
+                  : _notes.isEmpty
+                  ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'No notes yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        child: Row(
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            // Open file button for empty state
+                            CupertinoButton(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    note['title'] ?? 'Untitled',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4.0),
-                                  // Use plain text preview instead of markdown to avoid overflow issues
-                                  Text(
-                                    _getPlainTextPreview(note['note'] ?? ''),
-                                    style: const TextStyle(
-                                      fontSize: 14.0,
-                                      color: CupertinoColors.systemGrey,
-                                      height: 1.3,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4.0),
-                                  Text(
-                                    'Updated: $formattedDate',
-                                    style: const TextStyle(
-                                      fontSize: 12.0,
-                                      color: CupertinoColors.systemGrey,
-                                    ),
-                                  ),
+                                  const Icon(CupertinoIcons.doc_text_fill),
+                                  const SizedBox(width: 8),
+                                  const Text('Open File'),
                                 ],
                               ),
+                              onPressed: _openFile,
                             ),
+                            const SizedBox(width: 16),
+                            // New note button for empty state
                             CupertinoButton(
-                              padding: const EdgeInsets.only(left: 8.0),
-                              onPressed: () {
-                                showCupertinoDialog(
-                                  context: context,
-                                  builder:
-                                      (context) => CupertinoAlertDialog(
-                                        title: const Text('Delete Note'),
-                                        content: const Text(
-                                          'Are you sure you want to delete this note?',
-                                        ),
-                                        actions: [
-                                          CupertinoDialogAction(
-                                            isDestructiveAction: true,
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                              _deleteNote(note['id']);
-                                            },
-                                            child: const Text('Delete'),
-                                          ),
-                                          CupertinoDialogAction(
-                                            child: const Text('Cancel'),
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                );
-                              },
-                              child: const Icon(
-                                CupertinoIcons.delete,
-                                color: CupertinoColors.systemRed,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
                               ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(CupertinoIcons.add_circled),
+                                  const SizedBox(width: 8),
+                                  const Text('New Note'),
+                                ],
+                              ),
+                              onPressed: _createNewNote,
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      ],
+                    ),
+                  )
+                  : ListView.builder(
+                    itemCount: _notes.length,
+                    itemBuilder: (context, index) {
+                      final note = _notes[index];
+                      final DateTime updatedAt =
+                          DateTime.tryParse(note['updated_at'] ?? '') ??
+                          DateTime.now();
+                      final String formattedDate =
+                          '${updatedAt.month}/${updatedAt.day}/${updatedAt.year} ${_formatTime(updatedAt)}';
+
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.of(context)
+                              .push(
+                                CupertinoPageRoute(
+                                  builder:
+                                      (context) => NotepadHomePage(
+                                        noteId: note['id'],
+                                        initialTitle: note['title'],
+                                        initialContent: note['note'],
+                                        startInViewMode:
+                                            true, // Existing notes open in view mode
+                                      ),
+                                ),
+                              )
+                              .then((_) => _refreshNotes());
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12.0),
+                          margin: const EdgeInsets.symmetric(
+                            vertical: 4.0,
+                            horizontal: 8.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.systemBackground,
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(
+                              color: CupertinoColors.systemGrey5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      note['title'] ?? 'Untitled',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16.0,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4.0),
+                                    // Use plain text preview instead of markdown to avoid overflow issues
+                                    Text(
+                                      _getPlainTextPreview(note['note'] ?? ''),
+                                      style: const TextStyle(
+                                        fontSize: 14.0,
+                                        color: CupertinoColors.systemGrey,
+                                        height: 1.3,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4.0),
+                                    Text(
+                                      'Updated: $formattedDate',
+                                      style: const TextStyle(
+                                        fontSize: 12.0,
+                                        color: CupertinoColors.systemGrey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              CupertinoButton(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                onPressed: () {
+                                  showCupertinoDialog(
+                                    context: context,
+                                    builder:
+                                        (context) => CupertinoAlertDialog(
+                                          title: const Text('Delete Note'),
+                                          content: const Text(
+                                            'Are you sure you want to delete this note?',
+                                          ),
+                                          actions: [
+                                            CupertinoDialogAction(
+                                              isDestructiveAction: true,
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                                _deleteNote(note['id']);
+                                              },
+                                              child: const Text('Delete'),
+                                            ),
+                                            CupertinoDialogAction(
+                                              child: const Text('Cancel'),
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                  );
+                                },
+                                child: const Icon(
+                                  CupertinoIcons.delete,
+                                  color: CupertinoColors.systemRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+        ),
       ),
     );
   }
