@@ -1,6 +1,15 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'note_tab.dart';
 import 'notes_list_screen.dart';
+
+// Define app-wide colors that will be used consistently throughout the app
+class AppColors {
+  // Background color in dark mode - a medium gray, not black
+  static const darkBackground = Color(0xFF393939);
+  // Navigation bar background in dark mode
+  static const darkBarBackground = Color(0xFF454545);
+}
 
 void main() {
   runApp(const NotepadApp());
@@ -11,14 +20,25 @@ class NotepadApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CupertinoApp(
+    return CupertinoApp(
       title: 'Medit',
-      theme: CupertinoThemeData(
+      theme: const CupertinoThemeData(
         primaryColor: CupertinoColors.systemBlue,
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: CupertinoColors.systemBackground,
+        // Use our consistent dark background color
+        scaffoldBackgroundColor: AppColors.darkBackground,
+        barBackgroundColor: AppColors.darkBarBackground,
+        // Override text theme to ensure navigation bar title is white in dark mode
+        textTheme: CupertinoTextThemeData(
+          navTitleTextStyle: TextStyle(
+            color: CupertinoColors.white,
+            fontSize: 17.0,
+            fontWeight: FontWeight.w600,
+            fontFamily: '.AppleSystemUIFont',
+          ),
+          primaryColor: CupertinoColors.systemBlue,
+        ),
       ),
-      home: NotesListScreen(),
+      home: const NotesListScreen(),
     );
   }
 }
@@ -75,6 +95,17 @@ class NotepadHomePageState extends State<NotepadHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the proper background color from the current theme
+    final isDarkMode = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final backgroundColor =
+        isDarkMode
+            ? AppColors
+                .darkBackground // Use consistent gray for dark mode
+            : CupertinoTheme.of(context).scaffoldBackgroundColor;
+
+    final titleColor =
+        isDarkMode ? CupertinoColors.white : CupertinoColors.black;
+
     return WillPopScope(
       // Intercept back button/gesture to ensure save completes
       onWillPop: () async {
@@ -92,7 +123,26 @@ class NotepadHomePageState extends State<NotepadHomePage> {
         return true;
       },
       child: CupertinoPageScaffold(
+        backgroundColor: backgroundColor,
         navigationBar: CupertinoNavigationBar(
+          backgroundColor: isDarkMode ? AppColors.darkBarBackground : null,
+          // Use DefaultTextStyle to explicitly set the text color for the title
+          middle:
+              widget.noteId != null
+                  ? DefaultTextStyle(
+                    style: TextStyle(
+                      color: titleColor,
+                      fontSize: 17.0,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: '.AppleSystemUIFont',
+                    ),
+                    child: Text(
+                      _titleController.text.isEmpty
+                          ? 'Untitled'
+                          : _titleController.text,
+                    ),
+                  )
+                  : null,
           // Add trailing delete button only for existing notes
           trailing:
               widget.noteId != null

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 import 'database_helper.dart';
 import 'markdown_view.dart';
+import 'main.dart'; // Add import for AppColors
 import 'package:file_picker/file_picker.dart';
 
 class NoteTab extends StatefulWidget {
@@ -29,10 +30,8 @@ class _NoteTabState extends State<NoteTab> {
   final ScrollController _scrollController = ScrollController();
   final ScrollController _previewScrollController = ScrollController();
   final DatabaseHelper _databaseHelper = DatabaseHelper();
-  final FocusNode _keyboardFocusNode =
-      FocusNode(); // Added for keyboard shortcuts
-  final FocusNode _noteBodyFocusNode =
-      FocusNode(); // Add focus node for note body
+  final FocusNode _keyboardFocusNode = FocusNode();
+  final FocusNode _noteBodyFocusNode = FocusNode();
   Timer? _saveTimer;
   bool _isNewNote = true;
   bool _hasChanges = false;
@@ -284,158 +283,255 @@ class _NoteTabState extends State<NoteTab> {
 
     _scrollController.dispose();
     _previewScrollController.dispose();
-    _keyboardFocusNode.dispose(); // Dispose the focus node
-    _noteBodyFocusNode.dispose(); // Dispose the note body focus node
+    _keyboardFocusNode.dispose();
+    _noteBodyFocusNode.dispose();
 
     super.dispose();
   }
 
   // Synchronous wrapper for _saveNote to ensure it completes before widget disposal
   void _saveNoteSync() {
-    _saveNote(); // This is still async but we're calling it in dispose
+    _saveNote();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Determine if dark mode is enabled
+    final isDarkMode = CupertinoTheme.of(context).brightness == Brightness.dark;
+
+    // Define text colors based on theme
+    final textColor =
+        isDarkMode ? CupertinoColors.white : CupertinoColors.black;
+    final placeholderColor =
+        isDarkMode
+            ? CupertinoColors.systemGrey.withOpacity(0.8)
+            : CupertinoColors.systemGrey;
+
+    // Define field appearance with lighter grays for dark mode
+    final fieldBackgroundColor =
+        isDarkMode
+            ? const Color(
+              0xFF505050,
+            ) // Lighter gray for text fields in dark mode
+            : CupertinoColors.white;
+
+    // Use centralized colors for consistency
+    final containerColor =
+        isDarkMode
+            ? const Color(0xFF454545) // Use a shade consistent with AppColors
+            : CupertinoColors.systemBackground;
+
+    final borderColor =
+        isDarkMode
+            ? const Color(0xFF666666) // Lighter border for dark mode
+            : CupertinoColors.systemGrey5;
+
     return Focus(
       focusNode: _keyboardFocusNode,
       autofocus: true,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            // Title field
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemBackground,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(8.0),
+      child: Container(
+        // Use app-wide background color from AppColors
+        color: isDarkMode ? AppColors.darkBackground : null,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              // Title field
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                decoration: BoxDecoration(
+                  color: containerColor,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(8.0),
+                  ),
+                  border: Border.all(
+                    color: borderColor,
+                    width: isDarkMode ? 1.0 : 0.5,
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child:
-                        _isPreviewMode
-                            ? Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12.0,
-                              ),
-                              child: Text(
-                                widget.titleController.text.isEmpty
-                                    ? 'Untitled'
-                                    : widget.titleController.text,
-                                style: const TextStyle(
-                                  fontFamily: '.AppleSystemUIFont',
-                                  fontSize: 18.0,
-                                  fontWeight: FontWeight.w600,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child:
+                          _isPreviewMode
+                              ? Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12.0,
+                                ),
+                                child: Text(
+                                  widget.titleController.text.isEmpty
+                                      ? 'Untitled'
+                                      : widget.titleController.text,
+                                  style: TextStyle(
+                                    fontFamily: '.AppleSystemUIFont',
+                                    fontSize: 18.0,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                ),
+                              )
+                              : Container(
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 5.0,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: fieldBackgroundColor,
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  border: Border.all(
+                                    color:
+                                        isDarkMode
+                                            ? const Color(0xFF444444)
+                                            : Colors.transparent,
+                                    width: isDarkMode ? 1.0 : 0,
+                                  ),
+                                ),
+                                child: CupertinoTextField(
+                                  controller: widget.titleController,
+                                  placeholder: 'Title',
+                                  placeholderStyle: TextStyle(
+                                    color: placeholderColor,
+                                    fontSize: 18.0,
+                                    fontFamily: '.AppleSystemUIFont',
+                                  ),
+                                  decoration: null, // Remove default decoration
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8.0,
+                                    horizontal: 8.0,
+                                  ),
+                                  style: TextStyle(
+                                    fontFamily: '.AppleSystemUIFont',
+                                    fontSize: 18.0,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                  maxLines: 1,
                                 ),
                               ),
-                            )
-                            : CupertinoTextField(
-                              controller: widget.titleController,
-                              placeholder: 'Title',
-                              decoration: const BoxDecoration(border: null),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12.0,
-                              ),
-                              style: const TextStyle(
-                                fontFamily: '.AppleSystemUIFont',
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                            ),
-                  ),
-                  // File open button
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: openFile,
-                    child: const Icon(
-                      CupertinoIcons.doc_text_fill,
-                      color: CupertinoColors.systemBlue,
                     ),
-                  ),
-                  // Toggle button between edit and preview modes
-                  Tooltip(
-                    message:
-                        _isPreviewMode
-                            ? 'Edit Note (Return)'
-                            : 'Preview Note (⌘ Return)',
-                    child: CupertinoButton(
+                    // File open button
+                    CupertinoButton(
                       padding: EdgeInsets.zero,
-                      onPressed: _togglePreviewMode,
+                      onPressed: openFile,
                       child: Icon(
-                        _isPreviewMode
-                            ? CupertinoIcons.pencil
-                            : CupertinoIcons.eye,
+                        CupertinoIcons.doc_text_fill,
                         color: CupertinoTheme.of(context).primaryColor,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Note content area - either editor or preview based on mode
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: CupertinoColors.systemGrey6,
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(8.0),
-                  ),
-                ),
-                width: double.infinity,
-                child:
-                    _isPreviewMode
-                        ? Container(
-                          decoration: const BoxDecoration(
-                            color: CupertinoColors.systemBackground,
-                            borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(8.0),
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(12.0),
-                          child: MarkdownView(
-                            data: widget.textController.text,
-                            scrollController: _previewScrollController,
-                          ),
-                        )
-                        : Container(
-                          decoration: const BoxDecoration(
-                            color: CupertinoColors.systemBackground,
-                            borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(8.0),
-                            ),
-                          ),
-                          child: CupertinoTextField(
-                            controller: widget.textController,
-                            focusNode: _noteBodyFocusNode,
-                            autofocus: _isNewNote,
-                            maxLines: null,
-                            expands: true,
-                            textAlignVertical: TextAlignVertical.top,
-                            placeholder:
-                                'Type your notes here using markdown...',
-                            padding: const EdgeInsets.all(12.0),
-                            scrollController: _scrollController,
-                            onTapOutside: (_) {
-                              // Unfocus when tapping outside
-                              _noteBodyFocusNode.unfocus();
-                            },
-                            decoration: const BoxDecoration(border: null),
-                            style: const TextStyle(
-                              fontFamily: '.AppleSystemUIFont',
-                              fontSize: 16.0,
-                              height: 1.5,
-                            ),
-                          ),
+                    // Toggle button between edit and preview modes
+                    Tooltip(
+                      message:
+                          _isPreviewMode
+                              ? 'Edit Note (Return)'
+                              : 'Preview Note (⌘ Return)',
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: _togglePreviewMode,
+                        child: Icon(
+                          _isPreviewMode
+                              ? CupertinoIcons.pencil
+                              : CupertinoIcons.eye,
+                          color: CupertinoTheme.of(context).primaryColor,
                         ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+
+              // Note content area - either editor or preview based on mode
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color:
+                        isDarkMode
+                            ? const Color(
+                              0xFF323234,
+                            ) // Lighter gray for outer container in dark mode
+                            : CupertinoColors.systemGrey6,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(8.0),
+                    ),
+                  ),
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 1.0),
+                  child:
+                      _isPreviewMode
+                          ? Container(
+                            decoration: BoxDecoration(
+                              color: containerColor,
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(8.0),
+                              ),
+                              border: Border.all(
+                                color: borderColor,
+                                width: isDarkMode ? 1.0 : 0.5,
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(12.0),
+                            child: MarkdownView(
+                              data: widget.textController.text,
+                              scrollController: _previewScrollController,
+                            ),
+                          )
+                          : Container(
+                            decoration: BoxDecoration(
+                              color: containerColor,
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(8.0),
+                              ),
+                              border: Border.all(
+                                color: borderColor,
+                                width: isDarkMode ? 1.0 : 0.5,
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: fieldBackgroundColor,
+                                borderRadius: BorderRadius.circular(8.0),
+                                border: Border.all(
+                                  color:
+                                      isDarkMode
+                                          ? const Color(0xFF4E4E52)
+                                          : Colors.transparent,
+                                  width: isDarkMode ? 1.0 : 0,
+                                ),
+                              ),
+                              child: CupertinoTextField(
+                                controller: widget.textController,
+                                focusNode: _noteBodyFocusNode,
+                                autofocus: _isNewNote,
+                                maxLines: null,
+                                expands: true,
+                                textAlignVertical: TextAlignVertical.top,
+                                placeholder:
+                                    'Type your notes here using markdown...',
+                                placeholderStyle: TextStyle(
+                                  color: placeholderColor,
+                                  fontFamily: '.AppleSystemUIFont',
+                                  fontSize: 16.0,
+                                ),
+                                padding: const EdgeInsets.all(12.0),
+                                scrollController: _scrollController,
+                                onTapOutside: (_) {
+                                  _noteBodyFocusNode.unfocus();
+                                },
+                                decoration: null, // Remove default decoration
+                                style: TextStyle(
+                                  fontFamily: '.AppleSystemUIFont',
+                                  fontSize: 16.0,
+                                  height: 1.5,
+                                  color: textColor,
+                                ),
+                                cursorColor:
+                                    CupertinoTheme.of(context).primaryColor,
+                              ),
+                            ),
+                          ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

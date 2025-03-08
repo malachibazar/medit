@@ -17,8 +17,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
   List<Map<String, dynamic>> _notes = [];
   bool _isLoading = true;
   bool _didInitialLoad = false;
-  final FocusNode _keyboardFocusNode =
-      FocusNode(); // Add focus node for keyboard shortcuts
+  final FocusNode _keyboardFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -183,9 +182,42 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Determine if dark mode is enabled
+    final isDarkMode = CupertinoTheme.of(context).brightness == Brightness.dark;
+
+    // Define text colors based on theme
+    final titleColor =
+        isDarkMode ? CupertinoColors.white : CupertinoColors.black;
+    final previewColor =
+        isDarkMode
+            ? CupertinoColors.systemGrey.darkColor
+            : CupertinoColors.systemGrey;
+
+    // Define background and border colors with consistent gray colors for dark mode
+    final itemBgColor =
+        isDarkMode
+            ? const Color(0xFF454545) // Lighter gray background for list items
+            : CupertinoColors.systemBackground;
+
+    final borderColor =
+        isDarkMode
+            ? const Color(0xFF666666) // Lighter border for dark mode
+            : CupertinoColors.systemGrey5;
+
     return CupertinoPageScaffold(
+      backgroundColor: isDarkMode ? AppColors.darkBackground : null,
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('All Notes'),
+        backgroundColor: isDarkMode ? AppColors.darkBarBackground : null,
+        // Force the middle text widget to use explicit color styling
+        middle: DefaultTextStyle(
+          style: TextStyle(
+            color: titleColor, // Explicitly white in dark mode
+            fontSize: 17.0,
+            fontWeight: FontWeight.w600,
+            fontFamily: '.AppleSystemUIFont',
+          ),
+          child: const Text('All Notes'),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -224,11 +256,12 @@ class _NotesListScreenState extends State<NotesListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           'No notes yet',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
+                            color: titleColor,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -247,7 +280,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                 children: [
                                   const Icon(CupertinoIcons.doc_text_fill),
                                   const SizedBox(width: 8),
-                                  const Text('Open File'),
+                                  Text('Open File'),
                                 ],
                               ),
                             ),
@@ -264,7 +297,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                 children: [
                                   const Icon(CupertinoIcons.add_circled),
                                   const SizedBox(width: 8),
-                                  const Text('New Note'),
+                                  Text('New Note'),
                                 ],
                               ),
                             ),
@@ -307,10 +340,11 @@ class _NotesListScreenState extends State<NotesListScreen> {
                             horizontal: 8.0,
                           ),
                           decoration: BoxDecoration(
-                            color: CupertinoColors.systemBackground,
+                            color: itemBgColor,
                             borderRadius: BorderRadius.circular(8.0),
                             border: Border.all(
-                              color: CupertinoColors.systemGrey5,
+                              color: borderColor,
+                              width: isDarkMode ? 1.0 : 0.5,
                             ),
                           ),
                           child: Row(
@@ -321,18 +355,18 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                   children: [
                                     Text(
                                       note['title'] ?? 'Untitled',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16.0,
+                                        color: titleColor,
                                       ),
                                     ),
                                     const SizedBox(height: 4.0),
-                                    // Use plain text preview instead of markdown to avoid overflow issues
                                     Text(
                                       _getPlainTextPreview(note['note'] ?? ''),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14.0,
-                                        color: CupertinoColors.systemGrey,
+                                        color: previewColor,
                                         height: 1.3,
                                       ),
                                       maxLines: 2,
@@ -341,9 +375,9 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                     const SizedBox(height: 4.0),
                                     Text(
                                       'Updated: $formattedDate',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12.0,
-                                        color: CupertinoColors.systemGrey,
+                                        color: previewColor,
                                       ),
                                     ),
                                   ],
